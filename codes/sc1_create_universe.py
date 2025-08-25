@@ -4,6 +4,7 @@ from rdkit.Chem import rdChemReactions
 from chemistry.mol_curation import CurateMolsMT, CurateMol, CurateMolsSDF
 from chemistry.visualization import WriteDataFrameSmilesToXls
 from chemistry.descriptors import calcDescriptorSet, rdkit_descriptorlist
+from util.utility import IsMac
 from pathlib import Path
 import logging 
 import pandas as pd
@@ -86,7 +87,10 @@ def sc2ExtractMethaCrylate(fd):
 
 def sc3CurateACD(fd):
     outfd   = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
-    acdfd   = '/Users/miyao/work/datasets/ACD/2025/BIOVIA_Content_2025.acd202501_2dsdf'
+    if IsMac():
+        acdfd   = '/Users/miyao/work/datasets/ACD/2025/BIOVIA_Content_2025.acd202501_2dsdf'
+    else:
+        acdfd   = '/home/miyao/work/datasets/acd2025'
     sdlist  = glob.glob(f'{acdfd}/*.sdf')
     
     logging.basicConfig(
