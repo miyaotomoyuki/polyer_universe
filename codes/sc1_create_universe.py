@@ -105,7 +105,7 @@ def sc3CurateACD(fd):
     )
 
     # multiprocessing 
-    njobs   = 2#cpu_count() -1 
+    njobs   = cpu_count() -1 
     batches = np.array_split(sdlist, njobs)    
     _ = Parallel(n_jobs=njobs)(delayed(worker_curation)(batch, outfd, idx) for idx, batch in enumerate(batches))
     
@@ -117,7 +117,7 @@ def worker_curation(sdfiles, outfd, id=0):
         outsmiles = str(sdfpath.stem) + '.smi'
         outpath   = f'{outfd}/{outsmiles}'
         progress=True if id == 0 else False
-        CurateMolsSDF(sdfile, outpath, verbose=True, show_progress=progress)
+        CurateMolsSDF(sdfile, outpath, verbose=False, show_progress=progress)
 
 
 def test_smarts_qurey():
