@@ -1,4 +1,5 @@
 import glob
+import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdChemReactions
 from chemistry.mol_curation import CurateMolsMT, CurateMol, CurateMolsSDF
@@ -8,6 +9,8 @@ from pathlib import Path
 import logging 
 import pandas as pd
 from util.utility import MakeFolderWithCurrentFuncName
+from joblib import Parallel, cpu_count, delayed
+
 logger=logging.getLogger(__name__)
 
 def sc1CurateDB1(fd):
@@ -96,13 +99,22 @@ def sc3CurateACD(fd):
             logging.StreamHandler()
         ]
     )
+
+    # multiprocessing 
+    njobs   = 2#cpu_count() -1 
+    batches = np.array_split(sdlist, njobs)    
+    _ = Parallel(n_jobs=njobs)(delayed(worker_curation)(batch, outfd, idx) for idx, batch in enumerate(batches))
     
-    for sdfile in sdlist:
+
+def worker_curation(sdfiles, outfd, id=0):
+    for sdfile in sdfiles:
         sdfpath = Path(sdfile)
         logger.info(f'------start to processing: {sdfpath.name}')
         outsmiles = str(sdfpath.stem) + '.smi'
         outpath   = f'{outfd}/{outsmiles}'
-        CurateMolsSDF(sdfile, outpath, verbose=False)
+        progress=True if id == 0 else False
+        CurateMolsSDF(sdfile, outpath, verbose=True, show_progress=progress)
+
 
 def test_smarts_qurey():
     smarts = '[N+0$([NH]([CX4,c])),N+0$([N]([CX4,c])([CX4,c])):1]-[C$(C(=O)([CX4,c])),C$([CH0](=O)):2]=[O:3]>>[Cl,OH,O:4][C:2]=[O:3].[N:1]'
