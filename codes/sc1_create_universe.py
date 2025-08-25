@@ -1,3 +1,4 @@
+import pickle
 import glob
 import numpy as np
 from rdkit import Chem
@@ -88,7 +89,7 @@ def sc2ExtractMethaCrylate(fd):
                               cell_width=300, 
                               cell_height=300)
 
-def sc3CurateACD(fd):
+def sc3CurateACD(fd, debug=True):
     outfd   = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
     if IsMac():
         acdfd   = '/Users/miyao/work/datasets/ACD/2025/BIOVIA_Content_2025.acd202501_2dsdf'
@@ -105,7 +106,7 @@ def sc3CurateACD(fd):
     )
 
     # multiprocessing 
-    njobs   = cpu_count() -1 
+    njobs   = cpu_count() -1 if not debug else 2
     batches = np.array_split(sdlist, njobs)    
     _ = Parallel(n_jobs=njobs)(delayed(worker_curation)(batch, outfd, idx) for idx, batch in enumerate(batches))
     
@@ -120,6 +121,44 @@ def worker_curation(sdfiles, outfd, id=0):
         CurateMolsSDF(sdfile, outpath, verbose=False, show_progress=progress)
 
 
+def sc4PostProcessACDs(fd, debug=True):
+    outfd   = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
+    cfileList = glob.glob(f'{fd}/results/sc3CurateACD/*[0-9].tsv')
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[
+            logging.FileHandler(f'{outfd}/logging_sc4.txt', mode='w'),
+            logging.StreamHandler()
+        ]
+    )
+    outmols = pd.read_csv(cfileList[0], sep='\t') # first element as a template
+    outmols.drop(columns='Name', inplace=True)
+    for idx, fname in enumerate(cfileList[1:]):
+        if debug and idx > 3:
+            break
+        logger.info(f'processing: {fname}')
+        loaded = pd.read_csv(fname, sep='\t')
+        loaded.drop(columns='Name', inplace=True)
+        outmols = pd.concat([outmols, loaded], ignore_index=True)
+    
+    logger.info(f'loaded all mols. {len(outmols)}')
+    uniquemols = outmols.drop_duplicates(subset='neutral_SMILES_biggest', keep='first')
+    logger.info(f'loaded unique mols. {len(uniquemols)}')
+
+    # save the unique mols 
+    outmols.to_csv(f'{outfd}/curated_allmols_ACD_{len(outmols)}.tsv', sep='\t')
+    uniquemols.to_csv(f'{outfd}/unique_mols_inBiggestNeutral_{len(uniquemols)}.tsv', sep='\t')
+
+    # convert to rdmol and save as pickle
+    logger.info('--------converting to ROMol---------')
+    uniquemols['ROMol'] = uniquemols['neutral_SMILES_biggest'].apply(Chem.MolFromSmiles)
+    okuniquemols       = uniquemols[~uniquemols['ROMol'].isna()]
+    logger.info(f'After dropping mols failing to conver to ROMol: {len(okuniquemols)}')
+    resname            = f'unique_mols_inBiggestNeutral_rdkit_convertible{len(okuniquemols)}'
+    okuniquemols.to_csv(f'{outfd}/{resname}.tsv', sep='\t')
+    pickle.dump(okuniquemols, open(f'{outfd}/{resname}.pickle','wb'))
+    
+    
 def test_smarts_qurey():
     smarts = '[N+0$([NH]([CX4,c])),N+0$([N]([CX4,c])([CX4,c])):1]-[C$(C(=O)([CX4,c])),C$([CH0](=O)):2]=[O:3]>>[Cl,OH,O:4][C:2]=[O:3].[N:1]'
     smi = 'Cc1ccc(cc1Nc2nccc(n2)c3cccnc3)NC(=O)c4ccc(cc4)CN5CCN(CC5)C'
@@ -135,5 +174,7 @@ if __name__ == '__main__':
         sc1CurateDB1ACD(bf)
     if 0:
         sc2ExtractMethaCrylate(bf)
+    if 0:
+        sc3CurateACD(bf, debug=False)
     if 1:
-        sc3CurateACD(bf)
+        sc4PostProcessACDs(bf, debug=False)
