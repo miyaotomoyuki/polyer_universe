@@ -44,7 +44,7 @@ def sc1CurateDB1(fd):
     logger.info(f'Removing duplicate recrods basd on "single nutral SMILES component: {len(udb1_single)}')
     udb1_single.to_csv(f'{outfd}/nonna_unique_db1_{len(udb1_single)}records.tsv', sep='\t')
 
-def sc2ExtractMethaCrylate(fd):  
+def sc2ExtractMethacrylate(fd):  
     print(rdkit_descriptorlist)   
     outfd = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
     logging.basicConfig(
@@ -167,14 +167,59 @@ def test_smarts_qurey():
     product = rxn.RunReactants((imatinib,))
     print(Chem.MolToSmiles(product[0][0]), Chem.MolToSmiles(product[0][1]))
 
+def sc5SelectMethacrylateACD(fd):
+    """
+    The same procedure for sc2
+    """
+    outfd = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[
+            logging.FileHandler(f'{outfd}/logging_sc2.txt', mode='w'),
+            logging.StreamHandler()
+        ]
+    )
+    methacrylate_query  = '[CH2]=C([CH3])[CX3](=O)[OX2]'
+    acrylate_query      = '[CH2]=[CH][CX3](=O)[OX2]'
+    vinyl_query         = '[CH2]=[CH]'
+    
+    qmethacrylate       = Chem.MolFromSmarts(methacrylate_query)
+    qacrylate           = Chem.MolFromSmarts(acrylate_query)
+    qvinyl              = Chem.MolFromSmarts(vinyl_query)
+    curatedMols         = pickle.load(open(f'{fd}/results/sc4PostProcessACDs/unique_mols_inBiggestNeutral_rdkit_convertible15827703.pickle', 'rb'))
+
+    curatedMols['num_methacrylates'] = curatedMols['ROMol'].apply(lambda x: len(x.GetSubstructMatches(qmethacrylate)))
+    methacrylate = curatedMols[curatedMols['num_methacrylates']>0]
+    methacrylate['num_acrylates'] = curatedMols['ROMol'].apply(lambda x: len(x.GetSubstructMatches(qacrylate)))
+    methacrylate['num_vinyls']    = curatedMols['ROMol'].apply(lambda x: len(x.GetSubstructMatches(qvinyl)))
+     
+    logger.info(f'methacrylates: {len(methacrylate)}')
+    outfname    = f'{outfd}/acd_methacrylates_{len(methacrylate)}'
+
+    # calculate MW, logP, # num acceptors, # num donors
+    desclist = ['MolWt', 'MolLogP', 'NumHAcceptors','NumHDonors','NumRotatableBonds', 'RingCount','NumAromaticRings','FractionCSP3']
+    descs       = calcDescriptorSet(methacrylate['ROMol'], use_descriptors=desclist, input_mol=True)
+    methacrylate = methacrylate.join(descs)
+
+    
+    methacrylate.to_csv(outfname + '.tsv', sep='\t')
+    WriteDataFrameSmilesToXls(methacrylate, 
+                              smiles_colnames=['SMILES', 'neutral_SMILES_biggest'], 
+                              retain_smiles_col=True, 
+                              out_filename=outfname + '.xlsx',
+                              cell_width=300, 
+                              cell_height=300)
+
 
 if __name__ == '__main__':
     bf = Path(__file__).parents[1]
     if 0:
         sc1CurateDB1ACD(bf)
     if 0:
-        sc2ExtractMethaCrylate(bf)
+        sc2ExtractMethacrylate(bf)
     if 0:
         sc3CurateACD(bf, debug=False)
-    if 1:
+    if 0:
         sc4PostProcessACDs(bf, debug=False)
+    if 1:
+        sc5SelectMethacrylateACD(bf)
