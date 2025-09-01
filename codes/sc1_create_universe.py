@@ -179,6 +179,7 @@ def sc5SelectMethacrylateACD(fd):
             logging.StreamHandler()
         ]
     )
+
     methacrylate_query  = '[CH2]=C([CH3])[CX3](=O)[OX2]'
     acrylate_query      = '[CH2]=[CH][CX3](=O)[OX2]'
     vinyl_query         = '[CH2]=[CH]'
@@ -200,7 +201,6 @@ def sc5SelectMethacrylateACD(fd):
     desclist = ['MolWt', 'MolLogP', 'NumHAcceptors','NumHDonors','NumRotatableBonds', 'RingCount','NumAromaticRings','FractionCSP3']
     descs       = calcDescriptorSet(methacrylate['ROMol'], use_descriptors=desclist, input_mol=True)
     methacrylate = methacrylate.join(descs)
-
     
     methacrylate.to_csv(outfname + '.tsv', sep='\t')
     WriteDataFrameSmilesToXls(methacrylate, 
@@ -209,7 +209,6 @@ def sc5SelectMethacrylateACD(fd):
                               out_filename=outfname + '.xlsx',
                               cell_width=300, 
                               cell_height=300)
-
 
 if __name__ == '__main__':
     bf = Path(__file__).parents[1]
