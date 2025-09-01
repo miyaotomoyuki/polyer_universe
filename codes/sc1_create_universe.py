@@ -210,6 +210,19 @@ def sc5SelectMethacrylateACD(fd):
                               cell_width=300, 
                               cell_height=300)
 
+def sc6LogAnalysisACD(fd):
+    outfd = MakeFolderWithCurrentFuncName(f'{fd}/results', allow_override=True)
+    sc3fd = f'{fd}/results/sc3CurateACD'
+    flistACDlog = glob.glob(f'{sc3fd}/*.log')
+    pdstats     = pd.read_csv(flistACDlog[0], sep='\t')
+    
+    # rest of the components  
+    for fname in flistACDlog[1:]:
+        res = pd.read_csv(fname, sep='\t')
+        pdstats = pd.concat([pdstats, res], ignore_index=True)
+    
+    pdstats.to_csv(f'{outfd}/cat_stats.tsv', sep='\t')
+    pdstats.sum().to_csv(f'{outfd}/collected_stats.tsv', sep='\t')
 
 if __name__ == '__main__':
     bf = Path(__file__).parents[1]
@@ -221,5 +234,7 @@ if __name__ == '__main__':
         sc3CurateACD(bf, debug=False)
     if 0:
         sc4PostProcessACDs(bf, debug=False)
-    if 1:
+    if 0:
         sc5SelectMethacrylateACD(bf)
+    if 1:
+        sc6LogAnalysisACD(bf)
